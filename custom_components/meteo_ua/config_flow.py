@@ -17,7 +17,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import DOMAIN, CONF_CITY_ID, CONF_CITY_SLUG, CONF_CITY_NAME
-from .parsers.api import MeteoUaApiError, async_fetch_wx, async_suggest
+from .parsers.api import MeteoUaApiError, async_fetch_wx, async_suggest, parse_city_ref
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,6 +79,7 @@ class MeteoUaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         self._cities: list[dict] = DEFAULT_CITIES
+        self._ref: tuple[str, str] = ("", "")
 
     async def async_step_user(self, user_input=None):
         """Step 1: search / filter. Empty = show top 20."""
@@ -87,6 +88,10 @@ class MeteoUaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             phrase = user_input.get("phrase", "").strip()
 
+            ref = parse_city_ref(phrase)
+            if ref:
+                self._ref = ref
+                return await self.async_step_manual()
             if phrase:
                 if len(phrase) < MIN_CHARS:
                     errors["phrase"] = "too_short"
@@ -109,6 +114,40 @@ class MeteoUaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     TextSelectorConfig(type=TextSelectorType.TEXT)
                 ),
             }),
+            errors=errors,
+        )
+
+    async def async_step_manual(self, user_input=None):
+        """Settlement given by meteo.ua page URL or id (not every page is in the search)."""
+        city_id, slug = self._ref
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            title = user_input["name"].strip() or slug or city_id
+            await self.async_set_unique_id(f"meteo_ua_{city_id}")
+            self._abort_if_unique_id_configured()
+            try:
+                await async_fetch_wx(async_get_clientsession(self.hass), city_id)
+            except MeteoUaApiError:
+                errors["name"] = "no_data"
+            except Exception:  # noqa: BLE001
+                errors["name"] = "cannot_connect"
+            if not errors:
+                return self.async_create_entry(
+                    title=f"Meteo UA \u2014 {title}",
+                    data={
+                        CONF_CITY_ID: city_id,
+                        CONF_CITY_SLUG: slug or f"id{city_id}",
+                        CONF_CITY_NAME: title,
+                    },
+                )
+        return self.async_show_form(
+            step_id="manual",
+            data_schema=vol.Schema({
+                vol.Required("name", default=slug.replace("-", " ").title()): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT)
+                ),
+            }),
+            description_placeholders={"city_id": city_id},
             errors=errors,
         )
 

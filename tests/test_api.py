@@ -195,5 +195,20 @@ class FetchTest(unittest.TestCase):
         self.assertIn("current", self.fetch(200, load("wx_34_kiev.json")))
 
 
+class CityRefTest(unittest.TestCase):
+    def test_urls_and_ids(self):
+        for text, want in (
+            ("https://meteo.ua/ua/8742/novoselki", ("8742", "novoselki")),
+            ("meteo.ua/8742/novoselki/", ("8742", "novoselki")),
+            ("https://www.meteo.ua/ua/8742?utm=x", ("8742", "")),
+            (" 8742 ", ("8742", "")),
+        ):
+            self.assertEqual(api.parse_city_ref(text), want, text)
+
+    def test_names_are_not_refs(self):
+        for text in ("Новосілки", "Київ 2", "https://example.com/ua/8742", ""):
+            self.assertIsNone(api.parse_city_ref(text), text)
+
+
 if __name__ == "__main__":
     unittest.main()

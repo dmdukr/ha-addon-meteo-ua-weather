@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.5
+
+- A settlement can be added by its meteo.ua page link (`https://meteo.ua/ua/8742/novoselki`)
+  or id. Many villages have forecast pages but are missing from the site search; the setup
+  form now asks for the display name and checks that the forecast exists.
+
 ## 1.1.4
 
 - No blocking file I/O in the event loop: the version is read at import and the card is

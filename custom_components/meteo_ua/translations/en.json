@@ -3,7 +3,7 @@
         "step": {
             "user": {
                 "title": "Meteo UA Weather — Search",
-                "description": "Enter settlement name to search, or leave empty for the list of regional centres.",
+                "description": "Enter a settlement name to search, a meteo.ua page link (https://meteo.ua/ua/8742/novoselki) or an id, or leave empty for the list of regional centres.",
                 "data": {
                     "phrase": "Filter"
                 }
@@ -13,6 +13,13 @@
                 "description": "Choose a settlement and press Submit to create the entity.",
                 "data": {
                     "city": "Settlement"
+                }
+            },
+            "manual": {
+                "title": "Settlement by link",
+                "description": "meteo.ua id {city_id}. Name to show in Home Assistant.",
+                "data": {
+                    "name": "Name"
                 }
             }
         },

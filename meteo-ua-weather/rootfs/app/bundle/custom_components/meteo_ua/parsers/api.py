@@ -15,6 +15,7 @@ responses; only the ``async_*`` functions touch the network.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime, timedelta, timezone, tzinfo
 from typing import Any
 from urllib.parse import quote
@@ -270,6 +271,21 @@ def parse_suggest(items: Any, limit: int = 20) -> list[dict[str, str]]:
         if len(out) >= limit:
             break
     return out
+
+
+_REF_RE = re.compile(r"(?:meteo\.ua/(?:[a-z]{2}/)?)?(\d{1,7})(?:/([a-z0-9-]+))?/?")
+
+
+def parse_city_ref(text: str) -> tuple[str, str] | None:
+    """A meteo.ua city page URL or a bare id → (city_id, slug or "").
+
+    Many settlements have forecast pages but are missing from /api/suggest; the URL
+    from the browser is the way to add them.
+    """
+    t = re.split(r"[?#]", (text or "").strip(), maxsplit=1)[0]
+    t = re.sub(r"^(?:https?://)?(?:www\.)?", "", t, flags=re.IGNORECASE)
+    m = _REF_RE.fullmatch(t)
+    return (m.group(1), m.group(2) or "") if m else None
 
 
 async def async_fetch_wx(session, city_id: str) -> dict[str, Any]:
