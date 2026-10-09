@@ -15,7 +15,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
-API = ROOT / "meteo-ua-weather/rootfs/app/bundle/custom_components/meteo_ua/parsers/api.py"
+API = ROOT / "custom_components/meteo_ua/parsers/api.py"
 FIX = Path(__file__).resolve().parent / "fixtures"
 KYIV = ZoneInfo("Europe/Kyiv")
 
@@ -140,6 +140,59 @@ class SuggestTest(unittest.TestCase):
     def test_garbage_is_ignored(self):
         self.assertEqual(api.parse_suggest("<html>"), [])
         self.assertEqual(api.parse_suggest([{"x": 1}, None]), [])
+
+
+class _Resp:
+    def __init__(self, status, body):
+        self.status, self._body = status, body
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    def raise_for_status(self):
+        if self.status >= 400:
+            raise RuntimeError(f"HTTP {self.status}")
+
+    async def json(self, content_type=None):
+        return self._body
+
+
+class _Session:
+    def __init__(self, status, body):
+        self.resp = _Resp(status, body)
+
+    def get(self, url, **kw):
+        return self.resp
+
+
+class FetchTest(unittest.TestCase):
+    """meteo.ua answers 404 + "{}" for old (pre-redesign) and data-less ids."""
+
+    def setUp(self):
+        import sys, types
+        if "aiohttp" not in sys.modules:
+            fake = types.ModuleType("aiohttp")
+            fake.ClientTimeout = lambda **kw: None
+            sys.modules["aiohttp"] = fake
+            self.addCleanup(sys.modules.pop, "aiohttp")
+
+    def fetch(self, status, body):
+        import asyncio
+        return asyncio.run(api.async_fetch_wx(_Session(status, body), "33345"))
+
+    def test_404_is_api_error_so_the_id_gets_migrated(self):
+        with self.assertRaises(api.MeteoUaApiError):
+            self.fetch(404, {})
+
+    def test_server_error_is_not_api_error(self):
+        with self.assertRaises(RuntimeError):
+            self.fetch(503, {})
+
+    def test_ok(self):
+        self.assertIn("current", self.fetch(200, load("wx_34_kiev.json")))
 
 
 if __name__ == "__main__":

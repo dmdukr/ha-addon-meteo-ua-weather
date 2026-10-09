@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.3
+
+- **Fix: the automatic city-id migration from 1.1.0 never ran.** meteo.ua answers old and
+  data-less ids with HTTP 404 (not an empty 200), which was treated as a network error.
+  A 404 is now "no forecast for this id": installations from 1.0.x move to the new id on
+  the first update, and the setup form shows "no data" instead of "cannot connect".
+
 ## 1.1.2
 
 - Setup checks that meteo.ua actually has a forecast for the chosen settlement. Many villages

@@ -281,6 +281,10 @@ async def async_fetch_wx(session, city_id: str) -> dict[str, Any]:
         headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
         timeout=aiohttp.ClientTimeout(total=20),
     ) as resp:
+        # Unknown or data-less ids (old pre-redesign ids, many villages) answer 404 with "{}":
+        # that is "no such forecast", not a network failure, so the caller can migrate the id.
+        if resp.status == 404:
+            raise MeteoUaApiError(f"no forecast for city id {city_id}")
         resp.raise_for_status()
         wx = await resp.json(content_type=None)
     _require(wx)
