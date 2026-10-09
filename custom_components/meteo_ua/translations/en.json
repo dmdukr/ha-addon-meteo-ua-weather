@@ -1,0 +1,28 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Meteo UA Weather — Search",
+                "description": "Enter settlement name to search, or leave empty for top 50 cities.",
+                "data": {
+                    "phrase": "Filter"
+                }
+            },
+            "select": {
+                "title": "Meteo UA Weather — Select",
+                "description": "Choose a settlement and press Submit to create the entity.",
+                "data": {
+                    "city": "Settlement"
+                }
+            }
+        },
+        "error": {
+            "too_short": "Enter at least 3 characters",
+            "no_results": "No results found. Try a different query",
+            "invalid_selection": "Select a settlement from the list"
+        },
+        "abort": {
+            "already_configured": "This settlement is already configured"
+        }
+    }
+}

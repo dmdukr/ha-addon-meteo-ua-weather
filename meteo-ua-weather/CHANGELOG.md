@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+- The repository is also a HACS integration (`custom_components/meteo_ua` at the root, `hacs.json`).
+  Installing through HACS avoids the add-on and its ~2 GB Chromium image; the integration no longer needs it.
+- A test keeps the HACS copy and the add-on bundle identical.
+
 ## 1.1.0
 
 meteo.ua was redesigned in October 2026: the old pages and city ids stopped working

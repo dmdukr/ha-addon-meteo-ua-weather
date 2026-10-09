@@ -24,6 +24,19 @@ On first start automatically installs the **Meteo UA Weather** integration and f
 
 ## Installation
 
+### HACS (recommended)
+
+The integration talks to the meteo.ua JSON API directly and registers the forecast card itself,
+so the add-on is not needed.
+
+1. **HACS → ⋮ → Custom repositories** → add `https://github.com/dmdukr/ha-addon-meteo-ua-weather`, type **Integration**
+2. Find **Meteo UA Weather** in HACS and click **Download**
+3. Restart Home Assistant
+4. **Settings → Integrations → Add Integration → Meteo UA Weather**
+5. Search for your city or select from the list of regional centres
+
+### Add-on
+
 1. In Home Assistant go to **Settings → Apps → App Store**
 2. Click **⋮ → Repositories**
 3. Add: `https://github.com/dmdukr/ha-addon-meteo-ua-weather`
@@ -141,6 +154,19 @@ Found a bug? Open an issue:
 
 ## Встановлення
 
+### HACS (рекомендовано)
+
+Інтеграція звертається до JSON API meteo.ua напряму і сама реєструє карточку прогнозу,
+тому app не потрібен.
+
+1. **HACS → ⋮ → Custom repositories** → додай `https://github.com/dmdukr/ha-addon-meteo-ua-weather`, тип **Integration**
+2. Знайди **Meteo UA Weather** у HACS і натисни **Download**
+3. Перезавантаж Home Assistant
+4. **Налаштування → Інтеграції → Додати інтеграцію → Meteo UA Weather**
+5. Знайди своє місто або обери зі списку обласних центрів
+
+### App
+
 1. В Home Assistant перейди до **Налаштування → Apps → App Store**
 2. Натисни **⋮ → Repositories**
 3. Додай: `https://github.com/dmdukr/ha-addon-meteo-ua-weather`
@@ -148,7 +174,7 @@ Found a bug? Open an issue:
 5. Запусти app
 6. Перезавантаж Home Assistant за запитом
 7. Перейди до **Налаштування → Інтеграції → Додати інтеграцію → Meteo UA Weather**
-8. Знайди своє місто або обери з топ-50 списку
+8. Знайди своє місто або обери зі списку обласних центрів
 
 ## Видалення
 
