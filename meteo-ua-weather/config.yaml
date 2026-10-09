@@ -7,7 +7,7 @@ description: >-
   Weather from meteo.ua for Home Assistant.
   On first start automatically installs Meteo UA Weather integration and
   forecast card.
-version: "1.0.1"
+version: "1.1.0"
 slug: "meteo_ua_weather"
 url: "https://github.com/dmdukr/ha-addon-meteo-ua-weather"
 arch:

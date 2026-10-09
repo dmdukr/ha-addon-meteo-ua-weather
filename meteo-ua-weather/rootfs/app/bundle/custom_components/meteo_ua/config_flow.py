@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import logging
-import re
 
-import aiohttp
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
@@ -18,92 +17,52 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import DOMAIN, CONF_CITY_ID, CONF_CITY_SLUG, CONF_CITY_NAME
+from .parsers.api import async_suggest
 
 _LOGGER = logging.getLogger(__name__)
 
-AUTOCOMPLETE_URL = (
-    "https://meteo.ua/front/forecast/autocomplete?phrase={phrase}&lang=ua"
-)
 MAX_RESULTS = 50
 MIN_CHARS = 3
-_URL_RE = re.compile(r"/ua/(\d+)/(.+)")
 
+# Regional centres with the ids of the redesigned meteo.ua (October 2026).
+# Old ids (Kyiv 33345, …) return an empty payload now; existing entries are
+# migrated by the coordinator.
 DEFAULT_CITIES: list[dict] = [
-    {"city_id": "33345", "slug": "kyiv", "title": "Київ"},
-    {"city_id": "33275", "slug": "kharkiv", "title": "Харків"},
-    {"city_id": "33393", "slug": "odesa", "title": "Одеса"},
-    {"city_id": "33466", "slug": "dnipro", "title": "Дніпро"},
-    {"city_id": "33317", "slug": "donetsk", "title": "Донецьк"},
-    {"city_id": "33310", "slug": "zaporizhzhia", "title": "Запоріжжя"},
-    {"city_id": "33301", "slug": "lviv", "title": "Львів"},
-    {"city_id": "33368", "slug": "kryvyi-rih", "title": "Кривий Ріг"},
-    {"city_id": "33369", "slug": "mykolaiv", "title": "Миколаїв"},
-    {"city_id": "33206", "slug": "sevastopol", "title": "Севастополь"},
-    {"city_id": "33246", "slug": "mariupol", "title": "Маріуполь"},
-    {"city_id": "33302", "slug": "luhansk", "title": "Луганськ"},
-    {"city_id": "33261", "slug": "vinnytsia", "title": "Вінниця"},
-    {"city_id": "33189", "slug": "simferopol", "title": "Сімферополь"},
-    {"city_id": "33377", "slug": "kherson", "title": "Херсон"},
-    {"city_id": "33325", "slug": "poltava", "title": "Полтава"},
-    {"city_id": "33240", "slug": "chernihiv", "title": "Чернігів"},
-    {"city_id": "33339", "slug": "cherkasy", "title": "Черкаси"},
-    {"city_id": "33215", "slug": "zhytomyr", "title": "Житомир"},
-    {"city_id": "33256", "slug": "sumy", "title": "Суми"},
-    {"city_id": "33243", "slug": "rivne", "title": "Рівне"},
-    {"city_id": "33279", "slug": "kamianske", "title": "Кам'янське"},
-    {"city_id": "33306", "slug": "kropyvnytskyi", "title": "Кропивницький"},
-    {"city_id": "33218", "slug": "khmelnytskyi", "title": "Хмельницький"},
-    {"city_id": "33274", "slug": "kremenchuk", "title": "Кременчук"},
-    {"city_id": "33299", "slug": "ternopil", "title": "Тернопіль"},
-    {"city_id": "33228", "slug": "ivano-frankivsk", "title": "Івано-Франківськ"},
-    {"city_id": "33222", "slug": "lutsk", "title": "Луцьк"},
-    {"city_id": "33460", "slug": "bila-tserkva", "title": "Біла Церква"},
-    {"city_id": "33286", "slug": "kramatorsk", "title": "Краматорськ"},
-    {"city_id": "33323", "slug": "melitopol", "title": "Мелітополь"},
-    {"city_id": "33241", "slug": "nizhyn", "title": "Ніжин"},
-    {"city_id": "33457", "slug": "brovary", "title": "Бровари"},
-    {"city_id": "33288", "slug": "sloviansk", "title": "Слов'янськ"},
-    {"city_id": "33230", "slug": "uzhhorod", "title": "Ужгород"},
-    {"city_id": "33341", "slug": "uman", "title": "Умань"},
-    {"city_id": "33270", "slug": "berdiansk", "title": "Бердянськ"},
-    {"city_id": "33395", "slug": "izmail", "title": "Ізмаїл"},
-    {"city_id": "33283", "slug": "nikopol", "title": "Нікополь"},
-    {"city_id": "33313", "slug": "pavlohrad", "title": "Павлоград"},
-    {"city_id": "33287", "slug": "kostiantynivka", "title": "Костянтинівка"},
-    {"city_id": "33252", "slug": "konotop", "title": "Конотоп"},
-    {"city_id": "33232", "slug": "mukachevo", "title": "Мукачево"},
-    {"city_id": "33303", "slug": "drohobych", "title": "Дрогобич"},
-    {"city_id": "33300", "slug": "stryi", "title": "Стрий"},
-    {"city_id": "33342", "slug": "smila", "title": "Сміла"},
-    {"city_id": "33375", "slug": "nova-kakhovka", "title": "Нова Каховка"},
-    {"city_id": "33324", "slug": "enerhodar", "title": "Енергодар"},
-    {"city_id": "33253", "slug": "shostka", "title": "Шостка"},
-    {"city_id": "33229", "slug": "chernivtsi", "title": "Чернівці"},
+    {"city_id": "34", "slug": "kiev", "title": "Київ"},
+    {"city_id": "6", "slug": "chernigov", "title": "Чернігів"},
+    {"city_id": "23", "slug": "sumyi", "title": "Суми"},
+    {"city_id": "31", "slug": "jitomir", "title": "Житомир"},
+    {"city_id": "28", "slug": "rovno", "title": "Рівне"},
+    {"city_id": "13", "slug": "lutsk", "title": "Луцьк"},
+    {"city_id": "44", "slug": "lvov", "title": "Львів"},
+    {"city_id": "47", "slug": "ternopol", "title": "Тернопіль"},
+    {"city_id": "49", "slug": "khmelnitskiy", "title": "Хмельницький"},
+    {"city_id": "67", "slug": "ivano-frankovsk", "title": "Івано-Франківськ"},
+    {"city_id": "83", "slug": "uzhgorod", "title": "Ужгород"},
+    {"city_id": "91", "slug": "chernovtsyi", "title": "Чернівці"},
+    {"city_id": "71", "slug": "vinnitsa", "title": "Вінниця"},
+    {"city_id": "56", "slug": "cherkassyi", "title": "Черкаси"},
+    {"city_id": "97", "slug": "kropivnitskiy-kirovograd", "title": "Кропивницький"},
+    {"city_id": "58", "slug": "poltava", "title": "Полтава"},
+    {"city_id": "164", "slug": "dnepr-dnepropetrovsk", "title": "Дніпро"},
+    {"city_id": "150", "slug": "harkov", "title": "Харків"},
+    {"city_id": "169", "slug": "donetsk", "title": "Донецьк"},
+    {"city_id": "170", "slug": "lugansk", "title": "Луганськ"},
+    {"city_id": "111", "slug": "odessa", "title": "Одеса"},
+    {"city_id": "112", "slug": "nikolaev", "title": "Миколаїв"},
+    {"city_id": "122", "slug": "herson", "title": "Херсон"},
+    {"city_id": "172", "slug": "zaporizhia", "title": "Запоріжжя"},
+    {"city_id": "134", "slug": "simferopol", "title": "Сімферополь"},
 ]
 
 
-async def _fetch_cities(phrase: str) -> list[dict]:
-    """Call meteo.ua autocomplete API, return list of {id, slug, title}."""
-    url = AUTOCOMPLETE_URL.format(phrase=phrase)
+async def _fetch_cities(hass, phrase: str) -> list[dict]:
+    """Search settlements via /api/suggest (Ukrainian names); [] on any failure."""
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status != 200:
-                    return []
-                data = await resp.json(content_type=None)
-    except Exception:
+        return (await async_suggest(async_get_clientsession(hass), phrase, loc="ua"))[:MAX_RESULTS]
+    except Exception as exc:
+        _LOGGER.warning("meteo.ua city search failed: %s", exc)
         return []
-
-    results = []
-    for item in data[:MAX_RESULTS]:
-        m = _URL_RE.search(item.get("url", ""))
-        if m:
-            results.append({
-                "city_id": m.group(1),
-                "slug": m.group(2),
-                "title": item.get("title", m.group(2)),
-            })
-    return results
 
 
 def _build_options(cities: list[dict]) -> list[SelectOptionDict]:
@@ -132,7 +91,7 @@ class MeteoUaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if len(phrase) < MIN_CHARS:
                     errors["phrase"] = "too_short"
                 else:
-                    results = await _fetch_cities(phrase)
+                    results = await _fetch_cities(self.hass, phrase)
                     if results:
                         self._cities = results
                     else:

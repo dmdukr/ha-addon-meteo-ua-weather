@@ -1,6 +1,6 @@
 # Meteo UA Weather — Home Assistant App
 
-Weather from [meteo.ua](https://meteo.ua) for Home Assistant. 30-day forecast, hourly forecast, animated weather effects, and monthly calendar grid.
+Weather from [meteo.ua](https://meteo.ua) for Home Assistant. 16-day forecast, hourly forecast, animated weather effects, and monthly calendar grid.
 
 On first start automatically installs the **Meteo UA Weather** integration and forecast card.
 
@@ -14,12 +14,12 @@ On first start automatically installs the **Meteo UA Weather** integration and f
 
 ## Features
 
-- **30-day daily forecast** with animated weather icons and temperature wave chart
+- **16-day daily forecast** with animated weather icons and temperature wave chart
 - **Hourly forecast** with temperature/precipitation chart, scrollable
 - **15 weather effects**: rain, snow, fog, wind, hail, lightning, clouds — with day/night backgrounds
 - **Monthly grid**: color-coded temperature waves, wind indicators, clickable days with golden border
 - **Night temperatures** in monthly grid (small white font)
-- **19 000+ settlements** search via meteo.ua API, top-50 cities by default
+- **19 000+ settlements** search via meteo.ua API, regional centres by default
 - **Dark / Light theme** support
 
 ## Installation
@@ -31,7 +31,7 @@ On first start automatically installs the **Meteo UA Weather** integration and f
 5. Start the add-on
 6. Restart Home Assistant when prompted
 7. Go to **Settings → Integrations → Add Integration → Meteo UA Weather**
-8. Search for your city or select from the top-50 list
+8. Search for your city or select from the list of regional centres
 
 ## Uninstallation
 
@@ -93,7 +93,7 @@ Remove the line to return to real weather.
 
 ## Monthly Grid
 
-The monthly grid shows 30 days with:
+The monthly grid shows up to 16 forecast days with:
 - Animated weather icons
 - Day + night temperatures (`3°...10°`)
 - Wind direction indicators
@@ -123,7 +123,7 @@ Found a bug? Open an issue:
 
 # Meteo UA Weather — Home Assistant App
 
-Погода з [meteo.ua](https://meteo.ua) для Home Assistant. 30-денний прогноз, погодинний прогноз, анімовані погодні ефекти та місячний календар.
+Погода з [meteo.ua](https://meteo.ua) для Home Assistant. 16-денний прогноз, погодинний прогноз, анімовані погодні ефекти та місячний календар.
 
 При першому запуску автоматично встановлює інтеграцію **Meteo UA Weather** та карточку прогнозу.
 
@@ -131,12 +131,12 @@ Found a bug? Open an issue:
 
 ## Можливості
 
-- **30-денний прогноз** з анімованими іконками та хвилею температур
+- **16-денний прогноз** з анімованими іконками та хвилею температур
 - **Погодинний прогноз** з графіком температури/опадів
 - **15 погодних ефектів**: дощ, сніг, туман, вітер, град, блискавка, хмари — з денними/нічними фонами
 - **Місячна сітка**: кольорові хвилі температур, індикатори вітру, клікабельні дні із золотою рамкою
 - **Нічна температура** в місячній сітці (дрібний білий шрифт)
-- **19 000+ населених пунктів** через API meteo.ua, топ-50 міст за замовчуванням
+- **19 000+ населених пунктів** через API meteo.ua, обласні центри за замовчуванням
 - Підтримка **темної / світлої теми**
 
 ## Встановлення
@@ -210,7 +210,7 @@ debug_condition: snowy-rainy
 
 ## Місячна сітка
 
-Місячна сітка показує 30 днів:
+Місячна сітка показує до 16 днів прогнозу:
 - Анімовані іконки погоди
 - Денна + нічна температура (`3°...10°`)
 - Індикатори напрямку вітру

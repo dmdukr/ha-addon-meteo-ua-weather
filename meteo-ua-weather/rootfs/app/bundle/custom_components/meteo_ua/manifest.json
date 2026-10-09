@@ -3,9 +3,9 @@
   "name": "Meteo UA Weather",
   "codeowners": ["@dmdukr"],
   "config_flow": true,
-  "documentation": "https://github.com/dmdukr/meteo-ua-weather",
+  "documentation": "https://github.com/dmdukr/ha-addon-meteo-ua-weather",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/dmdukr/meteo-ua-weather/issues",
+  "issue_tracker": "https://github.com/dmdukr/ha-addon-meteo-ua-weather/issues",
   "requirements": [],
-  "version": "1.0.1"
+  "version": "1.1.0"
 }

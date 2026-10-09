@@ -1,8 +1,7 @@
 """Weather platform for Meteo UA."""
 from __future__ import annotations
 
-import re
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.components.weather import (
@@ -11,29 +10,26 @@ from homeassistant.components.weather import (
     WeatherEntityFeature,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfPressure, UnitOfSpeed, UnitOfTemperature
+from homeassistant.const import (
+    UnitOfLength,
+    UnitOfPrecipitationDepth,
+    UnitOfPressure,
+    UnitOfSpeed,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, CONF_CITY_NAME, CONF_CITY_SLUG
+from .const import CONF_CITY_NAME, CONF_CITY_SLUG, DOMAIN
 from .coordinator import MeteoUaCoordinator
 
-_UA_TZ = timezone(timedelta(hours=2))
-
-
-def _parse_temp(temp_str: str) -> float | None:
-    if not temp_str:
-        return None
-    m = re.search(r"[+-]?\d+", temp_str.replace("\u2212", "-"))
-    return float(m.group()) if m else None
-
-
-def _parse_wind_speed(wind_str: str) -> float | None:
-    if not wind_str:
-        return None
-    m = re.search(r"[\d.]+", wind_str)
-    return float(m.group()) if m else None
+_MONTHS = {
+    "uk": ["січня", "лютого", "березня", "квітня", "травня", "червня",
+           "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"],
+    "en": ["January", "February", "March", "April", "May", "June",
+           "July", "August", "September", "October", "November", "December"],
+}
 
 
 async def async_setup_entry(
@@ -43,6 +39,26 @@ async def async_setup_entry(
     async_add_entities([MeteoUaWeather(coordinator, entry)])
 
 
+def _legacy_day(i: int, day: dict[str, Any], locale: str) -> dict[str, Any]:
+    """Daily entry in the attribute shape of v1.0 (kept for cards and templates)."""
+    d = date.fromisoformat(day["date"])
+    hi, speed = day.get("temp_max"), day.get("wind_speed")
+    unit = "м/с" if locale == "uk" else "m/s"
+    return {
+        "day": i + 1,
+        "date": f"{d.day} {_MONTHS.get(locale, _MONTHS['en'])[d.month - 1]}",
+        "date_iso": day["date"],
+        "temp": "" if hi is None else f"{round(hi):+d}°",
+        "temp_day": hi,
+        "temp_night": day.get("temp_min"),
+        "condition": day.get("condition_text", ""),
+        "ha_condition": day.get("condition"),
+        "wind": "" if speed is None else f"{speed:.1f} {unit}",
+        "precipitation": day.get("precipitation"),
+        "icon": "" if day.get("weather_code") is None else f"wmo-{day['weather_code']}",
+    }
+
+
 class MeteoUaWeather(CoordinatorEntity[MeteoUaCoordinator], WeatherEntity):
     """Current weather + daily and hourly forecast."""
 
@@ -50,102 +66,112 @@ class MeteoUaWeather(CoordinatorEntity[MeteoUaCoordinator], WeatherEntity):
     _attr_native_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_native_pressure_unit = UnitOfPressure.MMHG
     _attr_native_wind_speed_unit = UnitOfSpeed.METERS_PER_SECOND
+    _attr_native_visibility_unit = UnitOfLength.KILOMETERS
+    _attr_native_precipitation_unit = UnitOfPrecipitationDepth.MILLIMETERS
     _attr_supported_features = (
         WeatherEntityFeature.FORECAST_DAILY | WeatherEntityFeature.FORECAST_HOURLY
     )
 
     def __init__(self, coordinator: MeteoUaCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
+        # Built from the slug stored at setup: keep it stable across the city-id migration.
         self._attr_unique_id = f"meteo_ua_weather_{entry.data[CONF_CITY_SLUG]}"
         self._attr_name = f"Meteo UA {entry.data[CONF_CITY_NAME]}"
         self._attr_attribution = "meteo.ua"
 
     @property
+    def _current(self) -> dict[str, Any]:
+        return (self.coordinator.data or {}).get("current", {})
+
+    @property
     def condition(self) -> str | None:
-        return self.coordinator.data.get("current", {}).get("condition")
+        return self._current.get("condition")
 
     @property
     def native_temperature(self) -> float | None:
-        return self.coordinator.data.get("current", {}).get("temperature")
+        return self._current.get("temperature")
 
     @property
-    def humidity(self) -> int | None:
-        return self.coordinator.data.get("current", {}).get("humidity")
+    def native_apparent_temperature(self) -> float | None:
+        return self._current.get("apparent_temperature")
+
+    @property
+    def native_dew_point(self) -> float | None:
+        return self._current.get("dew_point")
+
+    @property
+    def humidity(self) -> float | None:
+        return self._current.get("humidity")
 
     @property
     def native_pressure(self) -> float | None:
-        return self.coordinator.data.get("current", {}).get("pressure")
+        return self._current.get("pressure")
 
     @property
     def native_wind_speed(self) -> float | None:
-        return self.coordinator.data.get("current", {}).get("wind_speed")
+        return self._current.get("wind_speed")
 
     @property
-    def wind_bearing(self) -> int | None:
-        return self.coordinator.data.get("current", {}).get("wind_bearing")
+    def wind_bearing(self) -> float | None:
+        return self._current.get("wind_bearing")
+
+    @property
+    def native_visibility(self) -> float | None:
+        return self._current.get("visibility")
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        cur = self.coordinator.data.get("current", {})
-        monthly = self.coordinator.data.get("monthly", {})
+        data = self.coordinator.data or {}
+        locale = data.get("locale", "uk")
+        daily = data.get("daily", [])
         return {
-            "condition_text": cur.get("condition_text", ""),
-            "wind_direction": cur.get("wind_direction", ""),
-            "forecast": monthly.get("forecast", []),
-            "forecast_days": monthly.get("days", 0),
-            "forecast_city": monthly.get("city", ""),
+            "condition_text": self._current.get("condition_text", ""),
+            "wind_direction": self._current.get("wind_direction", ""),
+            "observed_at": self._current.get("observed_at"),
+            "forecast": [_legacy_day(i, d, locale) for i, d in enumerate(daily)],
+            "forecast_days": len(daily),
+            "forecast_city": self.coordinator.city_slug,
         }
 
     async def async_forecast_daily(self) -> list[Forecast]:
-        """Return 30-day daily forecast."""
-        monthly = self.coordinator.data.get("monthly", {})
-        raw = monthly.get("forecast", [])
+        """Daily forecast for the days the API actually forecasts (16).
 
-        now = datetime.now(_UA_TZ)
-        result: list[Forecast] = []
-
-        for i in range(30):
-            dt = now + timedelta(days=i)
-            if i < len(raw):
-                day = raw[i]
-                temp_high = day.get("temp_day") or _parse_temp(day.get("temp", ""))
-                temp_low = day.get("temp_night")
-                result.append(
-                    Forecast(
-                        datetime=dt.strftime("%Y-%m-%dT00:00:00+02:00"),
-                        condition=day.get("ha_condition", "cloudy"),
-                        native_temperature=temp_high,
-                        native_templow=temp_low,
-                        native_wind_speed=_parse_wind_speed(day.get("wind", "")),
-                    )
-                )
-        return result
+        meteo.ua's month page continues with 60-year climate normals ("Кліматична норма");
+        those are statistics, not a forecast, and are not reported as one.
+        """
+        return [
+            Forecast(
+                datetime=day["datetime"],
+                condition=day.get("condition"),
+                native_temperature=day.get("temp_max"),
+                native_templow=day.get("temp_min"),
+                native_precipitation=day.get("precipitation"),
+                native_wind_speed=day.get("wind_speed"),
+                wind_bearing=day.get("wind_bearing"),
+            )
+            for day in (self.coordinator.data or {}).get("daily", [])
+        ]
 
     async def async_forecast_hourly(self) -> list[Forecast]:
-        """Return hourly forecast starting from current_hour - 1."""
-        current = self.coordinator.data.get("current", {})
-        hourly = current.get("hourly", [])
-        if not hourly:
-            return []
+        """Hourly forecast from one hour ago, up to 7 days.
 
-        now = datetime.now(_UA_TZ)
-        start_dt = now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=1)
-        start_iso = start_dt.strftime("%Y-%m-%dT%H:00:00+02:00")
-
-        result: list[Forecast] = []
-        for h in hourly:
-            if h["datetime"] < start_iso:
-                continue
-            result.append(
-                Forecast(
-                    datetime=h["datetime"],
-                    condition=h.get("condition", "cloudy"),
-                    native_temperature=h.get("temperature"),
-                    humidity=h.get("humidity"),
-                    native_pressure=h.get("pressure"),
-                    native_wind_speed=h.get("wind_speed"),
-                    wind_bearing=h.get("wind_bearing"),
-                    precipitation=h.get("precipitation"),
-                )
+        Re-filtered on every call: the coordinator refreshes every 30 minutes, so the
+        head of the cached list ages between updates.
+        """
+        start = datetime.now(timezone.utc) - timedelta(hours=1, minutes=59)
+        return [
+            Forecast(
+                datetime=h["datetime"],
+                condition=h.get("condition"),
+                native_temperature=h.get("temperature"),
+                native_apparent_temperature=h.get("apparent_temperature"),
+                native_dew_point=h.get("dew_point"),
+                humidity=h.get("humidity"),
+                native_pressure=h.get("pressure"),
+                native_wind_speed=h.get("wind_speed"),
+                wind_bearing=h.get("wind_bearing"),
+                native_precipitation=h.get("precipitation"),
             )
-        return result
+            for h in (self.coordinator.data or {}).get("hourly", [])
+            if datetime.fromisoformat(h["datetime"]) >= start
+        ]
