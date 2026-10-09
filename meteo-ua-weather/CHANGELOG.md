@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.4
+
+- No blocking file I/O in the event loop: the version is read at import and the card is
+  copied in an executor (Home Assistant logged "Detected blocking call to read_text").
+
 ## 1.1.3
 
 - **Fix: the automatic city-id migration from 1.1.0 never ran.** meteo.ua answers old and

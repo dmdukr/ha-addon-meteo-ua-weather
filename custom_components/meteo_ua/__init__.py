@@ -30,9 +30,14 @@ def _get_version() -> str:
         return "0"
 
 
+# Read once at import: HA imports custom integrations in an executor, so file I/O is fine here
+# and never runs inside the event loop.
+_VERSION = _get_version()
+
+
 def _card_url(version: str | None = None) -> str:
     """Build card URL with cache-busting query param."""
-    v = version or _get_version()
+    v = version or _VERSION
     return f"/local/{CARD_FILENAME}?v={v}"
 
 
@@ -87,15 +92,18 @@ async def _register_card(hass: HomeAssistant) -> None:
 
     # Copy JS to www/
     src = Path(__file__).parent / "frontend" / CARD_FILENAME
-    www_dir = Path(hass.config.path("www"))
-    www_dir.mkdir(exist_ok=True)
-    dst = www_dir / CARD_FILENAME
+    dst = Path(hass.config.path("www")) / CARD_FILENAME
+
+    def _sync_card() -> bool:
+        dst.parent.mkdir(exist_ok=True)
+        # Always copy on version bump (file might differ even if same size)
+        if dst.exists() and src.read_bytes() == dst.read_bytes():
+            return False
+        shutil.copy2(src, dst)
+        return True
 
     try:
-        # Always copy on version bump (file might differ even if same size)
-        needs_copy = not dst.exists() or src.read_bytes() != dst.read_bytes()
-        if needs_copy:
-            await hass.async_add_executor_job(shutil.copy2, str(src), str(dst))
+        if await hass.async_add_executor_job(_sync_card):
             _LOGGER.info("Copied %s to %s", CARD_FILENAME, dst)
     except Exception as exc:
         _LOGGER.error("Failed to copy card: %s", exc)
@@ -168,9 +176,8 @@ async def _unregister_card(hass: HomeAssistant) -> None:
     # Delete JS file from www/
     dst = Path(hass.config.path("www")) / CARD_FILENAME
     try:
-        if dst.exists():
-            await hass.async_add_executor_job(dst.unlink)
-            _LOGGER.info("Deleted %s", dst)
+        await hass.async_add_executor_job(lambda: dst.unlink(missing_ok=True))
+        _LOGGER.info("Deleted %s", dst)
     except Exception as exc:
         _LOGGER.warning("Failed to delete card file: %s", exc)
 
