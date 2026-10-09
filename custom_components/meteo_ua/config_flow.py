@@ -17,7 +17,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import DOMAIN, CONF_CITY_ID, CONF_CITY_SLUG, CONF_CITY_NAME
-from .parsers.api import async_suggest
+from .parsers.api import MeteoUaApiError, async_fetch_wx, async_suggest
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -133,6 +133,15 @@ class MeteoUaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                     await self.async_set_unique_id(f"meteo_ua_{city_id}")
                     self._abort_if_unique_id_configured()
+                    # Many villages are in the search index but have no forecast data.
+                    try:
+                        await async_fetch_wx(async_get_clientsession(self.hass), city_id)
+                    except MeteoUaApiError:
+                        errors["city"] = "no_data"
+                    except Exception:  # noqa: BLE001
+                        errors["city"] = "cannot_connect"
+                    if errors:
+                        return self._show_select(errors)
                     return self.async_create_entry(
                         title=f"Meteo UA \u2014 {title}",
                         data={
@@ -143,6 +152,9 @@ class MeteoUaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
             errors["city"] = "invalid_selection"
 
+        return self._show_select(errors)
+
+    def _show_select(self, errors: dict[str, str]):
         city_options = _build_options(self._cities)
         default_city = city_options[0]["value"] if city_options else None
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2
+
+- Setup checks that meteo.ua actually has a forecast for the chosen settlement. Many villages
+  are in the search index but return an empty payload; they now get a clear error in the form
+  instead of an integration that never loads.
+
 ## 1.1.1
 
 - The repository is also a HACS integration (`custom_components/meteo_ua` at the root, `hacs.json`).

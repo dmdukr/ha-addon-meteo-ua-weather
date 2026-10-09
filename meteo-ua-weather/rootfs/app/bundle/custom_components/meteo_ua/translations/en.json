@@ -3,7 +3,7 @@
         "step": {
             "user": {
                 "title": "Meteo UA Weather — Search",
-                "description": "Enter settlement name to search, or leave empty for top 50 cities.",
+                "description": "Enter settlement name to search, or leave empty for the list of regional centres.",
                 "data": {
                     "phrase": "Filter"
                 }
@@ -19,7 +19,9 @@
         "error": {
             "too_short": "Enter at least 3 characters",
             "no_results": "No results found. Try a different query",
-            "invalid_selection": "Select a settlement from the list"
+            "invalid_selection": "Select a settlement from the list",
+            "no_data": "Meteo.ua has no forecast for this settlement — choose a nearby town",
+            "cannot_connect": "Cannot reach meteo.ua, try again later"
         },
         "abort": {
             "already_configured": "This settlement is already configured"
